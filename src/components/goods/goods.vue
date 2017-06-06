@@ -1,14 +1,14 @@
 <template>
   <div class="goods">
-    <div class="menu-wrapper">
+    <div class="menu-wrapper" ref="menuWrapper">
       <ul>
-        <li v-for="item in goods" class="menu-item">
+        <li v-for="(item,index) in goods" class="menu-item" :class="{current: currentIndex === index}" @click="selectMenu(index,$event)">
           <span class="text border-1px">
             <span v-show="item.type>0" class="icon" :class="classMap[item.type]"></span>{{item.name}}</span>
         </li>
       </ul>
     </div>
-    <div class="foods-wrapper">
+    <div class="foods-wrapper" ref="foodsWrapper">
       <ul>
         <li v-for="item in goods" class="food-list food-list-hook">
           <h1 class="title">{{item.name}}</h1>
@@ -29,7 +29,6 @@
                   <span v-show="food.oldPrice" class="old">{{food.oldPrice}}</span>
                 </div>
               </div>
-
             </li>
           </ul>
         </li>
@@ -39,6 +38,7 @@
 </template>
 
 <script type="text/ecmascript-6">
+  import Scroll from 'better-scroll'
   const ERR_OK = 0
   export default{
     props: {
@@ -48,7 +48,9 @@
     },
     data () {
       return {
-        goods: []
+        goods: [],
+        listHeight: [],
+        scrollY: 0
       }
     },
     created () {
@@ -57,9 +59,60 @@
         response = response.body
         if (response.errno === ERR_OK) {
           this.goods = response.data
-          console.log(this.goods)
+          this.$nextTick(() => {
+            this._initScroll()
+            this._calculateHeight()
+          })
         }
       })
+    },
+    computed: {
+      currentIndex () {
+        for (let i = 0; i < this.listHeight.length; i++) {
+          let item = this.listHeight[i]
+          let nextItem = this.listHeight[i + 1]
+          if (!nextItem || this.scrollY >= item && this.scrollY < nextItem) {
+            return i
+          }
+        }
+        return 0
+      }
+    },
+    methods: {
+      selectMenu (index, event) {
+        if (!event._constructed) {
+          return
+        }
+        let foodList = this.$refs.foodsWrapper.getElementsByClassName('food-list-hook')
+        let el = foodList[index]
+        this.foodScroll.scrollToElement(el, 300)
+      },
+      _drop (target) {
+        this.$nextTick(() => {
+          this.$refs.shopcart.drop(target)
+        })
+      },
+      _initScroll () {
+        this.menuScroll = new Scroll(this.$refs.menuWrapper, {
+          click: true
+        })
+        this.foodScroll = new Scroll(this.$refs.foodsWrapper, {
+          probeType: 3
+        })
+        this.foodScroll.on('scroll', (pos) => {
+          this.scrollY = Math.abs(Math.round(pos.y))
+        })
+      },
+      _calculateHeight () {
+        let foodList = this.$refs.foodsWrapper.getElementsByClassName('food-list-hook')
+        let height = 0
+        this.listHeight.push(height)
+        for (let i = 0; i < foodList.length; i++) {
+          let item = foodList[i]
+          height += item.clientHeight
+          this.listHeight.push(height)
+        }
+      }
     }
   }
 </script>
@@ -83,6 +136,14 @@
         width 56px
         line-height 14px
         padding 0px 12px
+        &.current
+          position relative
+          margin-top -1px
+          z-index 10px
+          background #fff
+          font-weight 700
+          .text
+            border none
         .icon
           display: inline-block
           vertical-align: top
@@ -143,7 +204,7 @@
             line-height 10px
             color rgb(147,153,159)
           .extra
-            &.count
+            .count
               margin-right 12px
           .price
             font-weight 700px

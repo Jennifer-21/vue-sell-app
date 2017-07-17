@@ -2,8 +2,9 @@
   <div class="goods">
     <div class="menu-wrapper" ref="menuWrapper">
       <ul>
-        <li v-for="(item,index) in goods" class="menu-item" :class="{current: currentIndex === index}" @click="selectMenu(index,$event)">
-          <span class="text border-1px">
+        <li v-for="(item,index) in goods" class="menu-item" :class="{current: currentIndex === index}"
+            @click="selectMenu(index,$event)">
+               <span class="text border-1px">
             <span v-show="item.type>0" class="icon" :class="classMap[item.type]"></span>{{item.name}}</span>
         </li>
       </ul>
@@ -13,7 +14,7 @@
         <li v-for="item in goods" class="food-list food-list-hook">
           <h1 class="title">{{item.name}}</h1>
           <ul>
-            <li v-for="food in item.foods" class="food-item border-1px">
+            <li v-for="food in item.foods" class="food-item border-1px" @click="selectFood(food,$event)">
               <div class="icon">
                 <img :src="food.icon" height="57" width="57">
               </div>
@@ -28,19 +29,26 @@
                   <span class="now">{{food.price}}</span>
                   <span v-show="food.oldPrice" class="old">{{food.oldPrice}}</span>
                 </div>
+                <div class="cartControl-wrapper">
+                  <cartControl :food="food" @cartAdd="_drop($event)"></cartControl>
+                </div>
               </div>
             </li>
           </ul>
         </li>
       </ul>
     </div>
-    <shopcart></shopcart>
+    <shopcart ref="shopcart" :select-foods="selectFoods" :delivery-price="seller.deliveryPrice"
+              :min-price="seller.minPrice"></shopcart>
+    <food :food="selectedFood" ref="food"></food>
   </div>
 </template>
 
 <script type="text/ecmascript-6">
   import Scroll from 'better-scroll'
-  import shopcart from 'components/shopcart/shopcart'
+  import shopcart from '../../components/shopcart/shopcart'
+  import cartControl from '../../components/cartcontrol/cartcontrol'
+  import food from '../../components/food/food'
   const ERR_OK = 0
   export default{
     props: {
@@ -52,7 +60,8 @@
       return {
         goods: [],
         listHeight: [],
-        scrollY: 0
+        scrollY: 0,
+        selectedFood: {}
       }
     },
     created () {
@@ -69,15 +78,27 @@
       })
     },
     computed: {
+      /* 找到左侧索引位置 */
       currentIndex () {
         for (let i = 0; i < this.listHeight.length; i++) {
-          let item = this.listHeight[i]
-          let nextItem = this.listHeight[i + 1]
-          if (!nextItem || this.scrollY >= item && this.scrollY < nextItem) {
+          let item = this.listHeight[i]      //    当前高度
+          let nextItem = this.listHeight[i + 1]    //  下一个高度
+          if (!nextItem || this.scrollY >= item && this.scrollY < nextItem) {     //   当scroolY落在两个listHeight中间或者最后一个
             return i
           }
         }
         return 0
+      },
+      selectFoods () {
+        let foods = []
+        this.goods.forEach((good) => {
+          good.foods.forEach((food) => {
+            if (food.count) {
+              foods.push(food)
+            }
+          })
+        })
+        return foods
       }
     },
     methods: {
@@ -89,9 +110,16 @@
         let el = foodList[index]
         this.foodScroll.scrollToElement(el, 300)
       },
-      _drop (target) {
+      selectFood (food, event) {
+        if (!event._constructed) {
+          return
+        }
+        this.selectedFood = food
+        this.$refs.food.show()
+      },
+      _drop (event) {
         this.$nextTick(() => {
-          this.$refs.shopcart.drop(target)
+          this.$refs.shopcart.drop(event.target)
         })
       },
       _initScroll () {
@@ -99,10 +127,11 @@
           click: true
         })
         this.foodScroll = new Scroll(this.$refs.foodsWrapper, {
-          probeType: 3
+          click: true,
+          probeType: 3   //    实时监听滚动位置
         })
-        this.foodScroll.on('scroll', (pos) => {
-          this.scrollY = Math.abs(Math.round(pos.y))
+        this.foodScroll.on('scroll', (pos) => {      //  监听事件（位置）
+          this.scrollY = Math.abs(Math.round(pos.y))     //     整数取正
         })
       },
       _calculateHeight () {
@@ -117,7 +146,9 @@
       }
     },
     components: {
-      shopcart
+      shopcart,
+      cartControl,
+      food
     }
   }
 </script>
@@ -172,7 +203,7 @@
           display table-cell
           width 56px
           vertical-align middle
-          border-1px(rgba(7,17,27,0.1))
+          border-1px(rgba(7, 17, 27, 0.1))
     .foods-wrapper
       flex 1
       .title
@@ -181,13 +212,13 @@
         line-height 26px
         border-left 2px solid #d9dde1
         font-size 12px
-        color rgb(147,153,159)
+        color rgb(147, 153, 159)
         background #f3f5f7
       .food-item
         display flex
         margin 18px
         padding-bottom 18px
-        border-1px(rgba(7,17,27,0.1))
+        border-1px(rgba(7, 17, 27, 0.1))
         &:last-child
           border-none()
           margin-bottom 0px
@@ -201,25 +232,29 @@
             margin 2px 0px 8px 0px
             line-height 3px
             height 14px
-            color rgb(7,17,27)
+            color rgb(7, 17, 27)
           .desc
             margin-bottom 8px
-          .desc,.extra
+          .desc, .extra
             font-size 10px
             line-height 10px
-            color rgb(147,153,159)
+            color rgb(147, 153, 159)
           .extra
             .count
               margin-right 12px
           .price
-            font-weight 700px
+            font-weight 700
             line-height 24px
             .now
               margin-right 8px
               font-size 14px
-              color rgb(250,20,20)
+              color rgb(250, 20, 20)
             .old
               font-size 10px
               text-decoration line-throught
-              color rgb(147,153,159)
+              color rgb(147, 153, 159)
+          .cartControl-wrapper
+            position: absolute
+            right: 0
+            bottom: 12px
 </style>

@@ -59,7 +59,7 @@
     data () {
       return {
         showFlag: false,
-        selectType: ALL,
+        selectType: 2,
         onlyContent: true,
         desc: {
           all: '全部',
@@ -110,7 +110,6 @@
     bottom 48px
     z-index 30
     width 100%
-    /*height 619px*/
     background #fff
     transform translate3d(0, 0, 0)
     &.move-enter-active, &.move-leave-active
